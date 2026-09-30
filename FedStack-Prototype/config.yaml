@@ -1,0 +1,119 @@
+# =====================================================================
+#  FedStack prototype  --  configuration
+#  Prototype of Chapter 3: "A Distributed Framework for Zero-day Malware
+#  Detection using Federated Ensemble Models" (stacked-ensemble FL)
+# =====================================================================
+#
+#  HOW TO PLUG IN YOUR TRAINED MODELS  (the only part you must edit)
+#  ----------------------------------------------------------------
+#   1. Copy the node checkpoints written by train_node.py
+#        node_1_model.pt ... node_4_model.pt      ->  ./models/
+#      (each file is a dict with keys: state_dict, class_to_idx,
+#       backbone, grayscale, n_classes  -- exactly what train_node.py saves)
+#   2. Optionally copy stacker.joblib written by server_stack.py -> ./models/
+#      If it is missing, the demo fits the meta-learner itself on the
+#      validation split of `data.training_images_dir` (or `model.validation_dir`).
+#   3. Leave `mode: auto`.  The app switches to the real ResNet path as soon
+#      as every checkpoint listed under model.nodes exists.  Until then it
+#      runs the lightweight "surrogate" nodes so the whole system can be
+#      demonstrated end-to-end on a CPU-only laptop.
+#   4. Start:   python run.py
+#
+#  Paths may be absolute (e.g. /data/... or D:/data/...) or relative to this folder.
+# ---------------------------------------------------------------------
+
+mode: auto                      # auto | resnet | surrogate
+
+model:
+  backbone: resnet50            # alexnet | resnet18 | resnet50   (must match the checkpoints)
+  image_size: 224               # input resolution of the backbone
+  grayscale: true               # 1-channel conv1, as in the released code
+  accuracy_weighting: true      # Eq. 3.15 accuracy-aware node weighting
+  quantize_int8_for_transfer: true   # payload accounting uses INT8 weights per round (thesis decision)
+  nodes:
+    - name: node_1
+      label: Adware specialist
+      checkpoint: models/node_1_model.pt
+    - name: node_2
+      label: Adware / PUA / worm specialist
+      checkpoint: models/node_2_model.pt
+    - name: node_3
+      label: PUA / Trojan specialist
+      checkpoint: models/node_3_model.pt
+    - name: node_4
+      label: Win32 file-infector specialist
+      checkpoint: models/node_4_model.pt
+  stacker: rf                         # server meta-learner: rf | logreg   (both exist in stacking.py of the released code)
+  rf_trees: 300
+  logreg_C: 10.0
+  stacker_file: models/stacker.joblib # optional: {"stacker","vocab","metrics"} written by server_stack.py
+
+data:
+  training_images_dir: datasets/Short_Dataset   # 28 family folders x 500 PNG (225x225 grayscale)
+  zero_day_dir: datasets/External               # families never seen by any node
+  samples_per_class: 4          # demo sample images copied to data/samples
+  thumbnail_size: 64            # resolution used by the surrogate nodes and the feature cache
+  split:                        # per family, deterministic (seeded) split of the available images
+    train: 350
+    val: 75                     # used by the server to fit the meta-learner (never seen by node training)
+    test: 75                    # reported metrics
+
+federation:
+  rounds: 20                    # T communication rounds
+  local_epochs: 5               # E local epochs per round
+  # Class-specialist partition: four nodes x seven families (Section 3.2 / 3.5.1)
+  partition:
+    node_1:
+      - Adware_ADWARE_Imali_Gen0
+      - Adware_ADWARE_InstallRex_Gen2
+      - Adware_ADWARE_InstMonster_Gen71
+      - Adware_ADWARE_MultiPlug_Gen73
+      - Adware_Mplug_LO4
+      - Gen_Adware_BrowseFox_16
+      - Gen_Variant_Adware_Mplug
+    node_2:
+      - Gen_Variant_Adware_Graftor
+      - Gen_Variant_Adware_Kazy
+      - Gen_Variant_Adware_MultiPlug
+      - Gen_Variant_Application_Bundler
+      - Gen_Variant_Application_Kazy
+      - Email_Worm_W32_Mydoom_gen_A5
+      - Net_Worm_W32_Allaple_gen_B
+    node_3:
+      - PotentialRisk_PUA_Multiplug_aoa
+      - PotentialRisk_PUA_Outbrowse_Gen
+      - PotentialRisk_PUA_Somoto_Gen2
+      - Trojan_Agent_BDMJ
+      - Trojan_TR_Agent_nmczf
+      - Trojan_TR_Crypt_XPACK_Gen
+      - Trojan_TR_Dropper_Gen
+    node_4:
+      - Trojan_W32_Cryptolocker_C
+      - Win32_Parite_B
+      - Win32_Parite_C
+      - Win32_Ramnit
+      - Win32_Sality_3
+      - Win32_Virlock_Gen_1
+      - Win32_Virtob_Gen_12
+
+surrogate:                      # stand-in node models used until the ResNet checkpoints are present
+  pca_components: 96            # private per-node feature extractor (plays the frozen backbone)
+  hidden_units: 256             # neural classification head trained locally each round
+  learning_rate: 0.0005
+  seed: 42
+
+open_set:                       # zero-day / unknown-family decision
+  method: max_prob              # max_prob | entropy
+  threshold: auto               # a number (e.g. 0.60) or auto = calibrated on KNOWN validation data only
+  known_reject_budget: 0.10     # auto: accept rejecting this share of known validation samples (false-alarm budget)
+
+watch:                          # endpoint-agent behaviour: scan every new file dropped in a folder
+  dir: watch_inbox
+  poll_seconds: 1.0
+  quarantine: false             # move every scanned file to ./quarantine (all known families are malicious); never deletes
+  extensions: [".exe", ".dll", ".sys", ".scr", ".pdf", ".bin", ".png", ".jpg"]
+
+server:
+  host: 127.0.0.1
+  port: 8765
+  open_browser: true

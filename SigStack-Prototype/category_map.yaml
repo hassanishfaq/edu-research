@@ -1,0 +1,50 @@
+# Standardised category map (Table 4.3) -- the versioned label-service artifact of Section 4.4.4.
+# Rules are regular expressions matched (case-insensitive) against the raw vendor string, in order;
+# the first match wins.  Strings that match no rule are "Unmapped": they stay out of the labelled
+# corpus and are listed by the dashboard as map gaps to review.  Bump `version` on every edit;
+# every stored verdict records the version that was applied so labels can be re-derived later.
+version: v1
+categories:
+  - Adware
+  - Backdoor Trojans
+  - Worms
+  - Downloaders
+  - PUA
+  - Infostealers
+  - Trojans
+  - Viruses
+  - Fake Security Tools
+rules:
+  Baidu:                                   # Baidu naming: <platform>.<type>.<family>.<variant>
+    - { match: '\.Adware\.',                     category: Adware }
+    - { match: '\.Trojan\.(HotBar|Webprefix)\.', category: Adware }         # adware families that Baidu files under Trojan
+    - { match: '\.Trojan-Downloader\.',          category: Downloaders }
+    - { match: '\.Trojan-Spy\.|\.Trojan-PSW\.|\.Trojan-Banker\.', category: Infostealers }
+    - { match: '\.Trojan-FakeAV\.|FakeAlert',    category: Fake Security Tools }
+    - { match: '\.Backdoor\.',                   category: Backdoor Trojans }
+    - { match: '\.Worm(-Email)?\.',              category: Worms }
+    - { match: '\.Virus\.',                      category: Viruses }
+    - { match: '\.Trojan(-Dropper)?\.',          category: Trojans }
+    # Rootkit.* is not one of the Table 4.3 categories -> Unmapped (shown as a map gap)
+  Kaspersky:                               # Kaspersky naming: [not-a-virus:]<Behaviour>.<Platform>.<Family>.<variant>
+    - { match: '^not-a-virus:?AdWare\.Win32\.(Lollipop|Linkun)\.', category: PUA }   # Table 4.3 lists these two under PUA
+    - { match: '^not-a-virus:?AdWare\.',         category: Adware }
+    - { match: '^not-a-virus:?Downloader\.',     category: Downloaders }
+    - { match: '^Trojan-Downloader\.',           category: Downloaders }
+    - { match: '^(Net|P2P|Email|IM|IRC)-Worm\.|^Worm\.', category: Worms }
+    - { match: '^Backdoor\.',                    category: Backdoor Trojans }
+    - { match: '^Virus\.',                       category: Viruses }
+    - { match: '^Trojan-FakeAV\.',               category: Fake Security Tools }
+    - { match: '^Trojan-(Spy|PSW|Banker|GameThief)\.', category: Infostealers }
+    - { match: '^Trojan(-Dropper|-Ransom)?\.',   category: Trojans }
+  Symantec:                                # Symantec naming: <Type>.<Family>[!suffix] / W32.<Family>
+    - { match: '^Adware\.|^Download\.Adware',    category: Adware }
+    - { match: '^PUA\.',                         category: PUA }
+    - { match: '^Downloader',                    category: Downloaders }
+    - { match: '^Infostealer',                   category: Infostealers }
+    - { match: '^Backdoor\.',                    category: Backdoor Trojans }
+    - { match: '^Trojan\.FakeAV',                category: Fake Security Tools }   # thesis Table 4.3 places Trojan.FakeAV!gen57 here
+    - { match: '^Trojan\.',                      category: Trojans }
+    - { match: '@mm$|^W32\.HLLW\.|^W32\.(Rahack|Changeup|SillyFDC|SillyWNSE|Mydoom|Kwbot|Chir|Badday|Mabezat|Pilleuz|Pykspa|Imaut|IRCBot|Spyrat|Griptolo|Nofer)', category: Worms }
+    - { match: '!inf|^W32\.HLLP\.|^W32\.(Sality|Virut|Pinfi|Xpiro|Virlock|Ramnit|Almanahe|Wapomi|ElKern|Neshuta|Madangel|Looked|Fujacks)', category: Viruses }
+    # Hacktool.Rootkit is not one of the Table 4.3 categories -> Unmapped (shown as a map gap)

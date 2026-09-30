@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FedStack — federated malware detection console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+    <div>
+      <div class="brand-name">FedStack</div>
+      <div class="brand-sub">Federated stacked-ensemble malware detection · prototype of Chapter 3</div>
+    </div>
+  </div>
+  <nav class="topnav">
+    <a href="#scan">Scan</a><a href="#federation">Federation</a><a href="#zeroday">Zero-day</a><a href="#watch">Live watch</a><a href="#system">System</a>
+  </nav>
+  <div class="chips">
+    <span class="chip" id="chip-mode" title="Which node models are running">mode —</span>
+    <span class="chip" id="chip-nodes">nodes —</span>
+    <span class="chip" id="chip-families">families —</span>
+    <span class="chip" id="chip-meta">meta-learner —</span>
+    <span class="chip mono" id="chip-res">cpu — · ram —</span>
+  </div>
+</header>
+
+<main>
+
+<!-- ============================================================ SCAN -->
+<section id="scan" class="block">
+  <div class="block-head">
+    <h2>Scan a file</h2>
+    <p>The file is never executed. Its bytes become a grayscale image, four private nodes vote, the server's meta-learner decides.</p>
+  </div>
+
+  <div class="grid scan-grid">
+    <div class="card">
+      <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Drop a file here or press Enter to choose one">
+        <input type="file" id="file-input" hidden>
+        <div class="dz-icon" aria-hidden="true"></div>
+        <div class="dz-title">Drop any file</div>
+        <div class="dz-sub">.exe .dll .pdf .bin — or a dataset image (.png)</div>
+        <button class="btn ghost" id="choose-btn" type="button">Choose file</button>
+      </div>
+      <div class="samples">
+        <div class="samples-head">
+          <label for="sample-family">Dataset samples</label>
+          <select id="sample-family"></select>
+        </div>
+        <div class="sample-strip" id="sample-strip"></div>
+      </div>
+      <div class="not-ready" id="not-ready" hidden>
+        Nodes are untrained. Run the <a href="#federation">federated training</a> first, or place the ResNet checkpoints in <code>./models</code>.
+      </div>
+    </div>
+
+    <div class="card loom-card">
+      <div class="card-title"><span>Byte loom</span><span class="mono muted" id="loom-geom">bytes → image</span></div>
+      <div class="loom">
+        <canvas id="loom-canvas" width="225" height="225" aria-label="Malware image being woven from file bytes"></canvas>
+        <div class="hex" id="hex-view" aria-live="off"></div>
+      </div>
+      <div class="file-meta" id="file-meta"></div>
+    </div>
+
+    <div class="card verdict-card" id="verdict-card">
+      <div class="card-title"><span>Verdict</span><span class="mono muted" id="verdict-time"></span></div>
+      <div class="verdict-empty" id="verdict-empty">Drop a file to see the federated verdict.</div>
+      <div class="verdict" id="verdict" hidden>
+        <div class="verdict-top">
+          <svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
+            <circle class="ring-bg" cx="60" cy="60" r="52"></circle>
+            <circle class="ring-fg" id="ring-fg" cx="60" cy="60" r="52"></circle>
+            <text id="ring-txt" x="60" y="66" text-anchor="middle">0%</text>
+          </svg>
+          <div class="verdict-main">
+            <div class="badge" id="verdict-badge">—</div>
+            <div class="family" id="verdict-family">—</div>
+            <div class="muted small" id="verdict-owner"></div>
+          </div>
+        </div>
+        <div class="top5" id="top5"></div>
+        <div class="votes" id="votes"></div>
+        <div class="meta-line mono" id="meta-line"></div>
+        <div class="timings mono" id="timings"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card map-card">
+    <div class="card-title"><span>Federation map</span><span class="mono muted" id="map-caption">endpoint → server → class-specialist nodes</span></div>
+    <svg id="fedmap" viewBox="0 0 1100 300" role="img" aria-label="Endpoint, aggregation server and four nodes with animated packets"></svg>
+  </div>
+</section>
+
+<!-- ============================================================ FEDERATION -->
+<section id="federation" class="block">
+  <div class="block-head">
+    <h2>Federated training</h2>
+    <p>Each node trains on its own seven families and uploads only quantised weights and a prediction matrix. The server fits the accuracy-weighted meta-learner. Nothing raw leaves a node.</p>
+  </div>
+  <div class="grid fed-grid">
+    <div class="card">
+      <div class="card-title"><span>Rounds</span><span class="mono muted" id="fed-status">idle</span></div>
+      <div class="controls">
+        <label>T rounds <input type="number" id="fed-rounds" min="1" max="100" value="20"></label>
+        <label>E local epochs <input type="number" id="fed-epochs" min="1" max="50" value="5"></label>
+        <button class="btn primary" id="fed-run" type="button">Run federated training</button>
+      </div>
+      <div class="progress" id="fed-progress" hidden><div class="bar" id="fed-bar"></div><div class="mono small" id="fed-progress-txt"></div></div>
+      <div class="nodes" id="node-cards"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>Accuracy per round</span><span class="mono muted">meta-learner on held-out test · nodes on their own families</span></div>
+      <canvas id="chart-acc" height="240"></canvas>
+      <div class="legend" id="legend-acc"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>Cumulative traffic</span><span class="mono muted">proposed (INT8 weights + predictions) vs FedAvg FP32 · log scale</span></div>
+      <canvas id="chart-traffic" height="240"></canvas>
+      <div class="legend" id="legend-traffic"></div>
+    </div>
+    <div class="card wide">
+      <div class="card-title"><span>Payload per communication round</span><span class="mono muted" id="payload-note"></span></div>
+      <div class="table-wrap"><table class="table mono" id="payload-table"></table></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ ZERO-DAY -->
+<section id="zeroday" class="block">
+  <div class="block-head">
+    <h2>Zero-day evaluation</h2>
+    <p>Families no node has ever seen are pushed through the system. A calibrated confidence threshold turns a wrong family label into an explicit <em>unknown family</em> flag.</p>
+  </div>
+  <div class="grid zd-grid">
+    <div class="card">
+      <div class="card-title"><span>Unseen families</span><button class="btn primary small" id="zd-run" type="button">Run evaluation</button></div>
+      <div class="zd-summary mono" id="zd-summary">Not run yet.</div>
+      <div class="zd-families" id="zd-families"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>Confidence distribution</span><span class="mono muted">known test images vs unseen families</span></div>
+      <canvas id="chart-hist" height="220"></canvas>
+      <div class="legend" id="legend-hist"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>Threshold sweep</span><span class="mono muted">balanced accuracy of the known / unknown decision</span></div>
+      <canvas id="chart-sweep" height="220"></canvas>
+      <div class="legend" id="legend-sweep"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ WATCH -->
+<section id="watch" class="block">
+  <div class="block-head">
+    <h2>Live watch — endpoint agent</h2>
+    <p>Every new file dropped into the inbox folder is scanned automatically. This is the on-write hook a real endpoint agent would place on Downloads or a mail gateway.</p>
+  </div>
+  <div class="grid watch-grid">
+    <div class="card">
+      <div class="controls">
+        <label class="switch"><input type="checkbox" id="watch-toggle"><span></span> Watch folder</label>
+        <code class="mono" id="watch-dir">—</code>
+      </div>
+      <p class="muted small">Copy any file into that folder while the switch is on. Quarantine can be enabled in <code>config.yaml</code> (<code>watch.quarantine</code>).</p>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>Recent scans</span></div>
+      <div class="table-wrap"><table class="table mono" id="recent-table"></table></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ SYSTEM -->
+<section id="system" class="block">
+  <div class="block-head">
+    <h2>System</h2>
+    <p>What is actually running: model files found, resource use of this process, and the exact numbers behind every panel.</p>
+  </div>
+  <div class="grid sys-grid">
+    <div class="card"><div class="card-title"><span>Model files</span></div><div id="sys-models"></div></div>
+    <div class="card"><div class="card-title"><span>Resources</span><span class="mono muted" id="sys-uptime"></span></div><div class="gauges" id="gauges"></div></div>
+    <div class="card"><div class="card-title"><span>Node models</span></div><div class="table-wrap"><table class="table mono" id="node-table"></table></div></div>
+    <div class="card"><div class="card-title"><span>Environment</span></div><div class="kv mono" id="sys-env"></div></div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="card log-card">
+    <div class="card-title"><span>Event log</span><span class="mono muted" id="log-count"></span></div>
+    <div class="log mono" id="log" aria-live="polite"></div>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">FedStack demo · Hassan Ishfaq · COMSATS University Islamabad, Wah Campus · Chapter 3 prototype</footer>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the article below and, where relevant, the PhD thesis it belongs to."
+title: "FedStack-Prototype: a runnable system prototype of the federated stacked-ensemble zero-day malware detector"
+version: 1.0.0
+date-released: 2026-10-01
+license: MIT
+type: software
+authors:
+  - family-names: Ishfaq
+    given-names: Hassan
+    affiliation: "Department of Computer Science, COMSATS University Islamabad, Wah Campus, Pakistan"
+keywords:
+  - malware detection
+  - zero-day malware
+  - federated learning
+  - stacked ensemble
+  - malware images
+  - open-set recognition
+preferred-citation:
+  type: article
+  title: "A distributed framework for zero-day malware detection using federated ensemble models"
+  authors:
+    - family-names: Ishfaq
+      given-names: Hassan
+    - family-names: Shah
+      given-names: Jamal Hussain
+    - family-names: Saleem
+      given-names: Rabia
+    - family-names: Afzal
+      given-names: Maira
+  journal: "PLOS ONE"
+  volume: 21
+  issue: 1
+  start: e0339907
+  year: 2026
+  doi: 10.1371/journal.pone.0339907
+references:
+  - type: thesis
+    title: "Novel Way to Detect Known and Unknown Malware Attacks Prediction and Classification using Machine Learning"
+    authors:
+      - family-names: Ishfaq
+        given-names: Hassan
+    institution:
+      name: "COMSATS University Islamabad, Wah Campus"
+    thesis-type: "PhD thesis"
+    year: 2026

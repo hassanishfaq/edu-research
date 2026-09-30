@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SigStack — multi-antivirus behavioural-signature console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+    <div>
+      <div class="brand-name">SigStack</div>
+      <div class="brand-sub">Multi-antivirus behavioural signatures · RoBERTa · stacking — prototype of Chapter 4</div>
+    </div>
+  </div>
+  <nav class="topnav">
+    <a href="#analyze">Analyse</a><a href="#labels">Label service</a><a href="#train">Training</a><a href="#holdout">Zero-day</a><a href="#watch">Intake</a><a href="#system">System</a>
+  </nav>
+  <div class="chips">
+    <span class="chip" id="chip-mode" title="Which encoder runs in the model slots">encoder —</span>
+    <span class="chip" id="chip-corpus">corpus —</span>
+    <span class="chip" id="chip-map">map —</span>
+    <span class="chip" id="chip-meta">stacking —</span>
+    <span class="chip mono" id="chip-res">cpu — · ram —</span>
+  </div>
+</header>
+
+<main>
+
+<!-- ============================================================ ANALYSE -->
+<section id="analyze" class="block">
+  <div class="block-head">
+    <h2>Analyse a behaviour report</h2>
+    <p>The sample is never executed here. Its sandbox report is flattened to the schema, serialised as text, tokenised, read by the encoder slots and combined by the stacking meta-learner.</p>
+  </div>
+
+  <div class="grid an-grid">
+    <div class="card">
+      <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Drop a behaviour report here or press Enter to choose one">
+        <input type="file" id="file-input" hidden>
+        <div class="dz-icon" aria-hidden="true"></div>
+        <div class="dz-title">Drop a behaviour report</div>
+        <div class="dz-sub">VirusTotal / sandbox JSON — or a <code>&lt;hash&gt;.txt</code> for a hash look-up</div>
+        <button class="btn ghost" id="choose-btn" type="button">Choose file</button>
+      </div>
+      <div class="samples">
+        <div class="samples-head">
+          <label for="sample-cat">Dataset reports</label>
+          <select id="sample-cat"></select>
+        </div>
+        <div class="sample-list" id="sample-list"></div>
+      </div>
+      <div class="not-ready" id="not-ready" hidden>
+        Slots are untrained. Run the <a href="#train">training protocol</a> first, or place the fine-tuned RoBERTa folders in <code>./models</code>.
+      </div>
+    </div>
+
+    <div class="card norm-card">
+      <div class="card-title"><span>Normaliser · Eqs. (4.5)–(4.10)</span><span class="mono muted" id="norm-geom">nested report → schema row → text</span></div>
+      <div class="schema-grid" id="schema-grid" aria-label="Schema registry keys: filled or padded"></div>
+      <div class="schema-legend mono small"><span><i class="k-on"></i>value present</span><span><i class="k-pad"></i>padded “0”</span><span id="schema-stats"></span></div>
+      <div class="tokmeter" id="tokmeter"><div class="tm-bar"><i id="tm-fill"></i><b id="tm-cut" style="left:100%"></b></div><div class="mono small" id="tm-text">tokens —</div></div>
+      <div class="serial mono" id="serial" aria-live="off"></div>
+      <div class="segs" id="segs"></div>
+    </div>
+
+    <div class="card verdict-card" id="verdict-card">
+      <div class="card-title"><span>Verdict</span><span class="mono muted" id="verdict-time"></span></div>
+      <div class="verdict-empty" id="verdict-empty">Drop a report to see the stacked verdict.</div>
+      <div class="verdict" id="verdict" hidden>
+        <div class="verdict-top">
+          <svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
+            <circle class="ring-bg" cx="60" cy="60" r="52"></circle>
+            <circle class="ring-fg" id="ring-fg" cx="60" cy="60" r="52"></circle>
+            <text id="ring-txt" x="60" y="66" text-anchor="middle">0%</text>
+          </svg>
+          <div class="verdict-main">
+            <div class="badge" id="verdict-badge">—</div>
+            <div class="family" id="verdict-cat">—</div>
+            <div class="muted small" id="verdict-sub"></div>
+          </div>
+        </div>
+        <div class="top5" id="top5"></div>
+        <div class="votes" id="votes"></div>
+        <div class="labelbox" id="labelbox"></div>
+        <div class="meta-line mono" id="meta-line"></div>
+        <div class="timings mono" id="timings"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card map-card">
+    <div class="card-title"><span>Inference path · Figure 4.8</span><span class="mono muted" id="map-caption">intake → acquisition → label service → normaliser → encoder → stacking → verdict store</span></div>
+    <svg id="pipemap" viewBox="0 0 1180 230" role="img" aria-label="Pipeline stages with animated packets"></svg>
+  </div>
+</section>
+
+<!-- ============================================================ LABEL SERVICE -->
+<section id="labels" class="block">
+  <div class="block-head">
+    <h2>Label service &amp; corpus</h2>
+    <p>Three engines, one versioned category map (Table 4.3). Eq. (4.4) counts how many engines flag a file; the consensus category is the majority after mapping.</p>
+  </div>
+  <div class="grid lab-grid">
+    <div class="card">
+      <div class="card-title"><span>Engine coverage · Eq. (4.4)</span><span class="mono muted" id="lab-hashes"></span></div>
+      <div class="scorebars" id="scorebars"></div>
+      <div class="table-wrap"><table class="table mono" id="engine-table"></table></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>Consensus categories</span><span class="mono muted" id="lab-agree"></span></div>
+      <canvas id="chart-cats" height="230"></canvas>
+      <div class="legend" id="legend-cats"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>Tokenised length</span><span class="mono muted" id="lab-tok"></span></div>
+      <canvas id="chart-tokens" height="230"></canvas>
+      <div class="legend" id="legend-tokens"></div>
+    </div>
+    <div class="card wide">
+      <div class="card-title"><span>Category map</span><span class="mono muted" id="map-version"></span></div>
+      <div class="map-grid">
+        <div>
+          <div class="controls">
+            <select id="map-engine"></select>
+            <input type="text" id="map-raw" placeholder="vendor string, e.g. W32.Sality.AE" class="txt">
+            <button class="btn small" id="map-try" type="button">Map</button>
+            <span class="mono small" id="map-result"></span>
+          </div>
+          <div class="table-wrap tall"><table class="table mono" id="rules-table"></table></div>
+        </div>
+        <div>
+          <div class="card-title"><span>Map gaps · unmapped vendor strings</span></div>
+          <div class="table-wrap tall"><table class="table mono" id="gaps-table"></table></div>
+          <p class="muted small">Add a rule to <code>category_map.yaml</code>, bump <code>version</code>, restart: labels are re-derived from the stored raw strings (Section 4.4.4, rule 1).</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TRAINING -->
+<section id="train" class="block">
+  <div class="block-head">
+    <h2>Training protocol</h2>
+    <p>Stratified k-fold cross-validation (Section 4.3): one family model per engine and one direct category model produce out-of-fold probabilities; the meta-learner stacks them and τ₄ is calibrated on known folds.</p>
+  </div>
+  <div class="grid tr-grid">
+    <div class="card">
+      <div class="card-title"><span>Run</span><span class="mono muted" id="tr-status">idle</span></div>
+      <div class="controls">
+        <span class="kv-inline mono small" id="tr-params"></span>
+        <button class="btn primary" id="tr-run" type="button">Run training protocol</button>
+      </div>
+      <div class="progress" id="tr-progress" hidden><div class="bar" id="tr-bar"></div><div class="mono small" id="tr-progress-txt"></div></div>
+      <div class="slots" id="slot-cards"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>Accuracy per fold</span><span class="mono muted">out-of-fold, per model slot</span></div>
+      <canvas id="chart-folds" height="240"></canvas>
+      <div class="legend" id="legend-folds"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>Labelling strategies · Table 4.9</span><span class="mono muted">against the consensus category</span></div>
+      <div class="table-wrap"><table class="table mono" id="strategy-table"></table></div>
+    </div>
+    <div class="card wide">
+      <div class="card-title"><span>Per-category precision and F1 · Tables 4.10 – 4.11</span><span class="mono muted" id="percat-note"></span></div>
+      <div class="table-wrap"><table class="table mono" id="percat-table"></table></div>
+    </div>
+    <div class="card wide">
+      <div class="card-title"><span>Family-level metrics per engine · Tables 4.4 – 4.6</span><span class="mono muted">precision / recall / F1 / support of each engine’s family model on its own labels</span></div>
+      <div class="famtabs" id="famtabs"></div>
+      <div class="table-wrap tall"><table class="table mono" id="family-table"></table></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>Confidence of the meta-learner</span><span class="mono muted" id="conf-note"></span></div>
+      <canvas id="chart-conf" height="200"></canvas>
+      <div class="legend" id="legend-conf"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ HOLDOUT -->
+<section id="holdout" class="block">
+  <div class="block-head">
+    <h2>Zero-day · category hold-out</h2>
+    <p>Each standardised category is removed from training in turn (Table 4.7 protocol). Its reports are pushed through the re-trained stack: below τ₄ they are flagged <em>unknown category</em> instead of being forced into a known one.</p>
+  </div>
+  <div class="grid ho-grid">
+    <div class="card">
+      <div class="card-title"><span>Held-out categories</span><span><select id="ho-cat"></select> <button class="btn primary small" id="ho-run" type="button">Run</button></span></div>
+      <div class="zd-summary mono" id="ho-summary">Not run yet.</div>
+      <div class="table-wrap"><table class="table mono" id="ho-table"></table></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>Confidence distribution</span><span class="mono muted" id="ho-hist-note">known validation vs held-out category</span></div>
+      <canvas id="chart-ho-hist" height="220"></canvas>
+      <div class="legend" id="legend-ho-hist"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>Threshold sweep</span><span class="mono muted">balanced accuracy of the known / unknown decision</span></div>
+      <canvas id="chart-ho-sweep" height="220"></canvas>
+      <div class="legend" id="legend-ho-sweep"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ INTAKE -->
+<section id="watch" class="block">
+  <div class="block-head">
+    <h2>Intake — report watcher &amp; verdict store</h2>
+    <p>Every report dropped into the inbox is analysed; a <code>&lt;hash&gt;.txt</code> triggers the cache-first acquisition path (corpus → report cache → VirusTotal when a key is configured). Every verdict records the model, map and schema versions.</p>
+  </div>
+  <div class="grid watch-grid">
+    <div class="card">
+      <div class="controls">
+        <label class="switch"><input type="checkbox" id="watch-toggle"><span></span> Watch inbox</label>
+        <code class="mono" id="watch-dir">—</code>
+      </div>
+      <p class="muted small" id="vt-note"></p>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>Verdict store · recent</span><span class="mono muted">data/verdicts.jsonl</span></div>
+      <div class="table-wrap"><table class="table mono" id="recent-table"></table></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ SYSTEM -->
+<section id="system" class="block">
+  <div class="block-head">
+    <h2>System</h2>
+    <p>What is actually running: model slots and their files, resource use of this process, the analytical cost of the transformer (Table 4.14) next to the measured cost of what is loaded.</p>
+  </div>
+  <div class="grid sys-grid">
+    <div class="card"><div class="card-title"><span>Model slots &amp; files</span></div><div id="sys-models"></div></div>
+    <div class="card"><div class="card-title"><span>Resources</span><span class="mono muted" id="sys-uptime"></span></div><div class="gauges" id="gauges"></div></div>
+    <div class="card"><div class="card-title"><span>Encoder cost · Table 4.14</span><span class="mono muted" id="cost-note"></span></div><div class="table-wrap"><table class="table mono" id="cost-table"></table></div></div>
+    <div class="card"><div class="card-title"><span>Environment &amp; versions</span></div><div class="kv mono" id="sys-env"></div></div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="card log-card">
+    <div class="card-title"><span>Event log</span><span class="mono muted" id="log-count"></span></div>
+    <div class="log mono" id="log" aria-live="polite"></div>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">SigStack demo · Hassan Ishfaq · COMSATS University Islamabad, Wah Campus · Chapter 4 prototype</footer>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

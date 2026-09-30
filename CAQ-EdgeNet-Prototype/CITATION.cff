@@ -1,0 +1,64 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the PhD thesis below (Chapter 5). A journal version of the method is under review."
+title: "CAQ-EdgeNet-Prototype: a runnable system prototype of the adaptive, quantised, offloading-aware IIoT malware detector"
+version: 1.0.0
+date-released: 2026-10-01
+license: MIT
+type: software
+authors:
+  - family-names: Ishfaq
+    given-names: Hassan
+    affiliation: "Department of Computer Science, COMSATS University Islamabad, Wah Campus, Pakistan"
+keywords:
+  - malware detection
+  - Industrial IoT
+  - edge computing
+  - computation offloading
+  - reinforcement learning
+  - quantisation-aware compression
+  - conditional attention
+preferred-citation:
+  type: thesis
+  title: "Novel Way to Detect Known and Unknown Malware Attacks Prediction and Classification using Machine Learning"
+  authors:
+    - family-names: Ishfaq
+      given-names: Hassan
+  institution:
+    name: "COMSATS University Islamabad, Wah Campus"
+  thesis-type: "PhD thesis"
+  year: 2026
+references:
+  - type: unpublished
+    title: "CAQ-EdgeNet: An Adaptive Framework for Malware Detection in Mobile Industrial IoT Systems"
+    authors:
+      - family-names: Ishfaq
+        given-names: Hassan
+      - family-names: Shah
+        given-names: Jamal Hussain
+      - family-names: Rehman
+        given-names: Saeed ur
+      - family-names: Afzal
+        given-names: Maira
+    notes: "Manuscript under review"
+    year: 2026
+  - type: article
+    title: "CICIoT2023: A real-time dataset and benchmark for large-scale attacks in IoT environment"
+    authors:
+      - family-names: Neto
+        given-names: Euclides Carlos Pinto
+      - family-names: Dadkhah
+        given-names: Sajjad
+      - family-names: Ferreira
+        given-names: Raphael
+      - family-names: Zohourian
+        given-names: Alireza
+      - family-names: Lu
+        given-names: Rongxing
+      - family-names: Ghorbani
+        given-names: Ali A.
+    journal: "Sensors"
+    volume: 23
+    issue: 13
+    start: 5941
+    year: 2023
+    doi: 10.3390/s23135941

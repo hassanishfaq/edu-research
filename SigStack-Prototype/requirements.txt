@@ -1,0 +1,15 @@
+# SigStack demo — Python 3.10+
+numpy>=1.24
+scipy>=1.10
+scikit-learn>=1.3
+pyyaml>=6.0
+fastapi>=0.110
+uvicorn>=0.27
+python-multipart>=0.0.9
+psutil>=5.9
+# Token-length accounting (roberta-base tokenizer, ~2 MB, cached after the first download) and the fine-tuned RoBERTa slots:
+transformers>=4.40
+safetensors>=0.4
+# Needed only when a fine-tuned RoBERTa folder is placed in ./models (CPU build is enough for inference):
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+torch>=2.0

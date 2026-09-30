@@ -1,0 +1,14 @@
+# FedStack demo — Python 3.10+
+numpy>=1.24
+scikit-learn>=1.3
+pillow>=10.0
+pyyaml>=6.0
+fastapi>=0.110
+uvicorn>=0.27
+python-multipart>=0.0.9
+psutil>=5.9
+joblib>=1.3
+# Needed only for the real ResNet checkpoints (CPU build is enough for inference):
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+torch>=2.0
+torchvision>=0.15

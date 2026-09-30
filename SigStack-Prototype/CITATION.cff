@@ -1,0 +1,45 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the PhD thesis below (Chapter 4). A journal version of the method is under review."
+title: "SigStack-Prototype: a runnable system prototype of the multi-antivirus behavioural-signature malware detector"
+version: 1.0.0
+date-released: 2026-10-01
+license: MIT
+type: software
+authors:
+  - family-names: Ishfaq
+    given-names: Hassan
+    affiliation: "Department of Computer Science, COMSATS University Islamabad, Wah Campus, Pakistan"
+keywords:
+  - malware detection
+  - dynamic analysis
+  - behavioural signatures
+  - multi-antivirus labelling
+  - RoBERTa
+  - stacking ensemble
+  - zero-day malware
+preferred-citation:
+  type: thesis
+  title: "Novel Way to Detect Known and Unknown Malware Attacks Prediction and Classification using Machine Learning"
+  authors:
+    - family-names: Ishfaq
+      given-names: Hassan
+  institution:
+    name: "COMSATS University Islamabad, Wah Campus"
+  thesis-type: "PhD thesis"
+  year: 2026
+references:
+  - type: unpublished
+    title: "Multi-AV's Signature-Based Deep Learning Framework for Zero-Day Malware and Intrusion Detection in Electronic Systems"
+    authors:
+      - family-names: Ishfaq
+        given-names: Hassan
+      - family-names: Shah
+        given-names: Jamal Hussain
+      - family-names: Rehman
+        given-names: Saeed ur
+      - family-names: Saleem
+        given-names: Rabia
+      - family-names: Afzal
+        given-names: Maira
+    notes: "Manuscript under review"
+    year: 2026

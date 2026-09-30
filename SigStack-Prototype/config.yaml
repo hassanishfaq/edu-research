@@ -1,0 +1,109 @@
+# =====================================================================
+#  SigStack prototype  --  configuration
+#  Prototype of Chapter 4: "Multi-AV's Signature-Based Deep Learning
+#  Framework for Zero-Day Malware and Intrusion Detection"
+#  (behaviour report -> flatten -> serialise -> RoBERTa -> stacking)
+# =====================================================================
+#
+#  HOW TO PLUG IN YOUR FINE-TUNED ROBERTA MODELS  (the only part you must edit)
+#  ------------------------------------------------------------------------
+#   1. Fine-tune with  scripts/colab_finetune_roberta.py  (roberta-base, n = 512,
+#      batch 8, 500 warm-up steps, weight decay 0.01, 5-fold stratified CV -- the
+#      Section 4.3 recipe).  It writes one Hugging Face folder per model:
+#        models/roberta_category/      direct category model (consensus labels)
+#        models/roberta_<engine>/      one family model per antivirus engine
+#      each holding config.json, model.safetensors, tokenizer files and labels.json.
+#   2. Copy the folders into ./models/ and leave  encoder.mode: auto .  Every model
+#      slot switches to RoBERTa on its own as soon as its folder exists; slots whose
+#      folder is missing keep running the CPU "surrogate" encoder (TF-IDF over the
+#      same serialised text + linear classifier -- the Table 4.12 SVM/TF-IDF baseline
+#      family), so the whole system stays demonstrable on a laptop.
+#   3. Start:   python run.py
+#
+#  Paths may be absolute (e.g. /data/... or D:/data/...) or relative to this folder.
+# ---------------------------------------------------------------------
+
+encoder:
+  mode: auto                      # auto | roberta | surrogate
+  roberta:
+    base_model: roberta-base      # 12 layers, d = 768, 12 heads, 124.6 M params (Table 4.14)
+    max_length: 512               # n tokens; the sequence-length lever of Table 4.14 (B.2)
+    category_model_dir: models/roberta_category
+    engine_model_dir_pattern: models/roberta_{engine}
+    int8_dynamic: false           # dynamic INT8 quantisation of the Linear layers for CPU hosts (Table 4.17, last row)
+    batch_size: 8
+  surrogate:                      # stand-in encoder used until the RoBERTa folders exist:
+    n_features: 131072            #   hashing space (2^17) over uni- and bi-grams of the serialised text,
+    ngram_max: 2                  #   TF-IDF weighting, then a shared latent space (truncated SVD, "frozen encoder")
+    svd_components: 256           #   on which every slot trains its own small classification head
+    head: logreg                  #   logreg | mlp
+    logreg_C: 4.0
+    mlp_hidden: 256
+    seed: 42
+  tokenizer: roberta-base         # used for token-length accounting in every mode (cached by transformers); "" = approximate
+
+data:
+  archive: datasets/multi_av_behaviour_reports.zip     # VirusTotal behaviour reports labelled by three engines (read in place, no extraction)
+  reports_dir: ""                  # alternative: folder <engine>/<family>/<hash>.json (used if archive is empty)
+  engines:                         # folder name in the archive -> name shown on the dashboard
+    - folder: Baidu
+      display: Baidu
+    - folder: Kaspersky
+      display: Kaspersky
+    - folder: Symantec
+      display: Symantec
+  max_hashes: 0                    # 0 = every unique hash in the archive (76,225); a smaller number samples deterministically
+  text_max_chars: 3000             # serialised row kept in the cache (>= 512 RoBERTa tokens, ~2.5 chars per token)
+  samples_per_category: 5          # demo reports copied to data/samples/<category>/
+
+normalizer:                        # Section 4.1, Eqs. (4.5)-(4.10)
+  schema_version: v1               # key set C of the schema registry (the 39 behaviour columns of the thesis CSV)
+  drop_keys: [success]             # k_unnecessary of Eq. (4.7): the per-event success flags
+  max_items_per_key: 20            # bound on list-valued keys before serialisation (de-duplicated, order kept)
+  category_order: [hooking, process, network, registry, filesystem, mutex, service, runtime-dlls, windows, extra, hosts_file]
+  mask_sample_hash: true           # the sample's own SHA-256 name becomes <sample> (system/user path prefixes are always canonicalised: %SYS32%, %USERPROFILE%, ...)
+
+labels:                            # Section 4.1 label service
+  category_map: category_map.yaml  # versioned vendor-string -> standardised category rules (Table 4.3)
+  consensus: majority              # majority of the mapped engine categories; ties -> engine_priority (the only rule implemented)
+  engine_priority: [Kaspersky, Symantec, Baidu]
+  min_engines: 1                   # Eq. (4.4) score needed to enter the labelled corpus (1 = every detected file, 3 = unanimous)
+  report_groups:                   # Table 4.10 grouping of the nine categories into six families (reporting only)
+    Adware: Adware
+    Backdoor Trojans: Backdoor
+    Downloaders: Downloader
+    Trojans: Trojan/Infostealer
+    Infostealers: Trojan/Infostealer
+    PUA: PUA
+    Viruses: Virus/Worm
+    Worms: Virus/Worm
+    Fake Security Tools: Trojan/Infostealer
+
+train:                             # Section 4.3 protocol
+  folds: 5                         # stratified k-fold cross-validation
+  max_samples: 30000               # stratified cap on the labelled corpus for the live CPU run (0 = all)
+  min_family_support: 30           # families with fewer labelled samples are not classes of an engine's family model
+  meta_learner: logreg             # stacking meta-learner (Table 4.11: logistic regression)
+  logreg_C: 1.0
+  roberta_eval_rows: 600           # rows scored per fold when a slot runs RoBERTa on CPU (fine-tuning itself ran offline)
+  holdout_rows: 12000              # rows used by the category hold-out study (Table 4.7 protocol; surrogate heads)
+  seed: 42
+
+open_set:                          # unknown-category rule, Eq. (4.11)
+  method: max_prob                 # max_prob | entropy
+  threshold: auto                  # a number or auto = quantile of out-of-fold confidences on KNOWN validation folds
+  known_reject_budget: 0.10        # beta: share of known validation samples the rule may reject (false-alarm budget)
+
+acquisition:                       # Section 4.4.2 behaviour acquisition
+  virustotal_api_key: ""           # optional: fetch behaviour + verdicts for a hash dropped as <hash>.txt (v3 API); cached by hash
+  cache_dir: data/cache/reports    # hash -> stored report (never re-fetched)
+
+watch:                             # intake agent: analyse every report dropped in a folder
+  dir: watch_inbox
+  poll_seconds: 1.0
+  extensions: [".json", ".txt"]
+
+server:
+  host: 127.0.0.1
+  port: 8766
+  open_browser: true
